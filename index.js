@@ -3,6 +3,7 @@ const axios = require('axios');
 const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
+const qs = require('querystring'); // Для форматирования данных в x-www-form-urlencoded
 
 const app = express();
 
@@ -89,32 +90,40 @@ app.get('/auth/vkid', async (req, res) => {
   try {
     const { code, device_id } = req.query;
     if (!code || !device_id) {
+      console.error('VKID: Код или device_id не предоставлены:', { code, device_id });
       return res.status(400).json({ error: 'Код или device_id не предоставлены' });
     }
+    console.log('VKID: Получен код и device_id:', { code, device_id });
+
     const response = await axios.post(
       'https://api.vk.com/method/auth.exchangeCode',
-      {
+      qs.stringify({
         client_id: CLIENT_ID,
         client_secret: CLIENT_SECRET,
         code,
         device_id,
         v: '5.131',
-      },
+      }),
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       }
     );
+
+    console.log('VKID: Ответ от VK API:', response.data);
+
     const { access_token } = response.data.response || {};
     if (!access_token) {
+      console.error('VKID: access_token не получен:', response.data);
       throw new Error('access_token не получен от VK API');
     }
+
     console.log('VKID: Успешно получен access_token:', access_token);
     res.json({ access_token });
   } catch (error) {
-    console.error('Ошибка обмена кода VK:', error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Ошибка обмена кода' });
+    console.error('VKID: Ошибка обмена кода:', error.response ? error.response.data : error.message);
+    res.status(500).json({ error: 'Ошибка обмена кода', details: error.response ? error.response.data : error.message });
   }
 });
 
@@ -175,13 +184,13 @@ app.post('/login', async (req, res) => {
 app.use((err, req, res, next) => {
   console.error('Ошибка сервера:', err.message, err.stack);
   if (err.message.includes('path-to-regexp')) {
-    res.status(500).json({ error: 'Ошибка в маршруте. Проверьте конфигурацию путей.' });
+    resడ: res.status(500).json({ error: 'Ошибка в маршруте. Проверьте конфигурацию путей.' });
   } else {
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Сервер запущен на http://localhost:${PORT}`);
   app._router.stack.forEach((middleware) => {
