@@ -88,29 +88,28 @@ app.get('/auth/vkid', async (req, res) => {
   const CLIENT_ID = '53544787';
   const CLIENT_SECRET = 'N89x726zF1SUKY5nWwC9';
   const REDIRECT_URI = 'https://react-lime-delta.vercel.app';
+
   try {
-    const { code, device_id, code_verifier } = req.query;
-    if (!code || !device_id) {
-      console.error('VKID: Код или device_id не предоставлены:', { code, device_id });
-      return res.status(400).json({ error: 'Код или device_id не предоставлены' });
+    const { code, state } = req.query;
+    if (!code) {
+      console.error('VKID: Код не предоставлен:', { code });
+      return res.status(400).json({ error: 'Код не предоставлен' });
     }
-    console.log('VKID: Получен код и device_id:', { code, device_id, code_verifier });
-
-    const params = {
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      code,
-      redirect_uri: REDIRECT_URI,
-    };
-
-    if (code_verifier) {
-      params.code_verifier = code_verifier;
+    if (state !== 'state123') {
+      console.error('VKID: Неверный state параметр:', state);
+      return res.status(400).json({ error: 'Неверный state параметр' });
     }
+    console.log('VKID: Получен код:', code);
 
-    console.log('VKID: Запрос к VK API:', params);
     const response = await axios.post(
       'https://oauth.vk.com/access_token',
-      qs.stringify(params),
+      qs.stringify({
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        code,
+        redirect_uri: REDIRECT_URI,
+        grant_type: 'authorization_code',
+      }),
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -120,16 +119,21 @@ app.get('/auth/vkid', async (req, res) => {
 
     console.log('VKID: Полный ответ от VK API:', JSON.stringify(response.data, null, 2));
 
-    const { access_token, refresh_token, expires_in, user_id, id_token, scope } = response.data;
+    if (response.data.error) {
+      console.error('VKID: Ошибка от VK API:', response.data);
+      return res.status(400).json({ error: response.data.error, details: response.data.error_description });
+    }
+
+    const { access_token, user_id, email } = response.data;
     if (!access_token) {
       console.error('VKID: access_token не получен:', response.data);
       throw new Error('access_token не получен от VK API');
     }
 
     console.log('VKID: Успешно получен access_token:', access_token);
-    res.json({ access_token, refresh_token, expires_in, user_id, id_token, scope });
+    res.json({ access_token, user_id, email });
   } catch (error) {
-    console.error('VKID: Ошибка обмена кода:', error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
+    console.error('VKID: Ошибка обмена кода:', error.response ? error.response.data : error.message);
     res.status(500).json({ error: 'Ошибка обмена кода', details: error.response ? error.response.data : error.message });
   }
 });
