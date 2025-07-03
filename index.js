@@ -5,10 +5,21 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 
 const app = express();
-app.use(cors({ origin: 'https://react-lime-delta.vercel.app' }));
+
+// Configure CORS to allow requests from your frontend
+app.use(cors({
+  origin: 'https://react-lime-delta.vercel.app',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true // If you need to send cookies or auth headers
+}));
+
+// Handle preflight requests explicitly
+app.options('*', cors());
+
 app.use(express.json());
 
-// Подключение к базе apt
+// Database connection
 const pool = new Pool({
   user: 'urqarbpjuehu9fk5eal7',
   host: 'bdongtjfve7uhskj8hbz-postgresql.services.clever-cloud.com',
@@ -17,7 +28,7 @@ const pool = new Pool({
   port: 50013,
 });
 
-// Создание таблицы users при запуске
+// Initialize users table
 async function initializeTable() {
   try {
     const client = await pool.connect();
@@ -33,14 +44,13 @@ async function initializeTable() {
     client.release();
   } catch (error) {
     console.error('Error initializing table:', error.message);
-    process.exit(1); // Завершаем процесс, если не удалось создать таблицу
+    process.exit(1);
   }
 }
 
-// Вызываем инициализацию таблицы при старте сервера
 initializeTable();
 
-// Эндпоинт для авторизации через Google
+// Google Auth endpoint
 app.post('/auth/google', async (req, res) => {
   try {
     const { access_token } = req.body;
@@ -57,36 +67,25 @@ app.post('/auth/google', async (req, res) => {
   }
 });
 
-// Эндпоинт для регистрации
+// Register endpoint
 app.post('/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
-
-    // Проверка, что все поля заполнены
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'All fields are required' });
     }
-
-    // Проверка, существует ли пользователь
     const userExists = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userExists.rows.length > 0) {
       return res.status(400).json({ error: 'User already exists' });
     }
-
-    // Хэширование пароля
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Сохранение пользователя в базе данных
     const result = await pool.query(
       'INSERT INTO users (email, password, name) VALUES ($1, $2, $3) RETURNING id, email, name',
       [email, hashedPassword, name]
     );
-
-    // Создание простого токена (заглушка, можно заменить на JWT)
     const token = Buffer.from(email).toString('base64');
     const userInfo = result.rows[0];
-
     res.json({ token, ...userInfo });
   } catch (error) {
     console.error('Error during registration:', error.message);
@@ -94,34 +93,24 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Эндпоинт для входа
+// Login endpoint
 app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Проверка, что все поля заполнены
     if (!email || !password) {
       return res.status(400).json({ error: 'All fields are required' });
     }
-
-    // Поиск пользователя в базе данных
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0) {
       return res.status(400).json({ error: 'Invalid email or password' });
     }
-
     const user = result.rows[0];
-
-    // Проверка пароля
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(400).json({ error: 'Invalid email or password' });
     }
-
-    // Создание простого токена (заглушка, можно заменить на JWT)
     const token = Buffer.from(email).toString('base64');
     const userInfo = { email: user.email, name: user.name };
-
     res.json({ token, ...userInfo });
   } catch (error) {
     console.error('Error during login:', error.message);
@@ -129,6 +118,8 @@ app.post('/login', async (req, res) => {
   }
 });
 
-app.listen(5000, () => {
-  console.log('Server running on http://localhost:5000');
+// Use PORT from environment variable for Vercel compatibility
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });
