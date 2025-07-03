@@ -8,11 +8,20 @@ const app = express();
 
 // Настройка CORS
 app.use(cors({
-  origin: ['https://react-lime-delta.vercel.app', 'http://localhost:3000'], // Разрешаем фронтенд и локальный деплой
+  origin: ['https://react-lime-delta.vercel.app', 'http://localhost:3000'], // Разрешённые домены
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: true,
+  optionsSuccessStatus: 200 // Для поддержки старых браузеров
 }));
+
+// Установка заголовка Cross-Origin-Opener-Policy
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp'); // Для дополнительной безопасности
+  console.log(`Запрос: ${req.method} ${req.url} от ${req.headers.origin}`);
+  next();
+});
 
 // Обработка предварительных запросов OPTIONS
 app.options('*', cors());
@@ -40,10 +49,10 @@ async function initializeTable() {
         name VARCHAR(255) NOT NULL
       )
     `);
-    console.log('Table users created or already exists');
+    console.log('Таблица users создана или уже существует');
     client.release();
   } catch (error) {
-    console.error('Error initializing table:', error.message);
+    console.error('Ошибка инициализации таблицы:', error.message);
     process.exit(1);
   }
 }
@@ -54,16 +63,20 @@ initializeTable();
 app.post('/auth/google', async (req, res) => {
   try {
     const { access_token } = req.body;
+    if (!access_token) {
+      return res.status(400).json({ error: 'Токен не предоставлен' });
+    }
     const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: {
         Authorization: `Bearer ${access_token}`,
       },
     });
     const userInfo = response.data;
+    console.log('Google userInfo:', userInfo);
     res.json(userInfo);
   } catch (error) {
-    console.error('Error verifying token:', error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Failed to authenticate' });
+    console.error('Ошибка проверки Google токена:', error.response ? error.response.data : error.message);
+    res.status(500).json({ error: 'Ошибка авторизации через Google' });
   }
 });
 
@@ -72,11 +85,11 @@ app.post('/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
     if (!email || !password || !name) {
-      return res.status(400).json({ error: 'All fields are required' });
+      return res.status(400).json({ error: 'Все поля обязательны' });
     }
     const userExists = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userExists.rows.length > 0) {
-      return res.status(400).json({ error: 'User already exists' });
+      return res.status(400).json({ error: 'Пользователь уже существует' });
     }
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -86,10 +99,11 @@ app.post('/register', async (req, res) => {
     );
     const token = Buffer.from(email).toString('base64');
     const userInfo = result.rows[0];
+    console.log('Пользователь зарегистрирован:', userInfo);
     res.json({ token, ...userInfo });
   } catch (error) {
-    console.error('Error during registration:', error.message);
-    res.status(500).json({ error: 'Registration failed' });
+    console.error('Ошибка регистрации:', error.message);
+    res.status(500).json({ error: 'Ошибка регистрации' });
   }
 });
 
@@ -98,27 +112,28 @@ app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ error: 'All fields are required' });
+      return res.status(400).json({ error: 'Все поля обязательны' });
     }
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid email or password' });
+      return res.status(400).json({ error: 'Неверный email или пароль' });
     }
     const user = result.rows[0];
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ error: 'Invalid email or password' });
+      return res.status(400).json({ error: 'Неверный email или пароль' });
     }
     const token = Buffer.from(email).toString('base64');
     const userInfo = { email: user.email, name: user.name };
+    console.log('Пользователь вошел:', userInfo);
     res.json({ token, ...userInfo });
   } catch (error) {
-    console.error('Error during login:', error.message);
-    res.status(500).json({ error: 'Login failed' });
+    console.error('Ошибка входа:', error.message);
+    res.status(500).json({ error: 'Ошибка входа' });
   }
 });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Сервер запущен на http://localhost:${PORT}`);
 });
