@@ -10,11 +10,11 @@ app.use(express.json());
 
 // Подключение к базе apt
 const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'apt',
-  password: 'Q1qqqqqq',
-  port: 5432,
+  user: 'urqarbpjuehu9fk5eal7',
+  host: 'bdongtjfve7uhskj8hbz-postgresql.services.clever-cloud.com',
+  database: 'bdongtjfve7uhskj8hbz',
+  password: '5l36CuO5sO7tjbN0EeA1uptsd5JPNA',
+  port: 50013,
 });
 
 // Создание таблицы users при запуске
