@@ -3,17 +3,20 @@ const axios = require('axios');
 const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
+const qs = require('querystring'); // Для форматирования данных в x-www-form-urlencoded
 
 const app = express();
 
 // Настройка CORS
-app.use(cors({
-  origin: ['https://react-lime-delta.vercel.app', 'http://localhost:3000'],
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  optionsSuccessStatus: 200
-}));
+app.use(
+  cors({
+    origin: ['https://react-lime-delta.vercel.app', 'http://localhost:3000'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    optionsSuccessStatus: 200,
+  })
+);
 
 // Установка заголовков COOP и COEP
 app.use((req, res, next) => {
@@ -82,25 +85,45 @@ app.post('/auth/google', async (req, res) => {
 
 // Эндпоинт для VKID-авторизации
 app.get('/auth/vkid', async (req, res) => {
-  const CLIENT_ID = "53544787";
-  const CLIENT_SECRET = 'ВАШ_CLIENT_SECRET'; // Замените на ваш client_secret из кабинета VK ID
+  const CLIENT_ID = '53544787';
+  const CLIENT_SECRET = 'ВАШ_CLIENT_SECRET'; // Замените на реальный client_secret из кабинета VK ID
   try {
     const { code, device_id } = req.query;
     if (!code || !device_id) {
+      console.error('VKID: Код или device_id не предоставлены:', { code, device_id });
       return res.status(400).json({ error: 'Код или device_id не предоставлены' });
     }
-    const response = await axios.post('https://api.vk.com/method/auth.exchangeCode', {
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      code,
-      device_id,
-      v: '5.131',
-    });
-    const { access_token } = response.data;
+    console.log('VKID: Получен код и device_id:', { code, device_id });
+
+    const response = await axios.post(
+      'https://api.vk.com/method/auth.exchangeCode',
+      qs.stringify({
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        code,
+        device_id,
+        v: '5.131',
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      }
+    );
+
+    console.log('VKID: Ответ от VK API:', response.data);
+
+    const { access_token } = response.data.response || {};
+    if (!access_token) {
+      console.error('VKID: access_token не получен:', response.data);
+      throw new Error('access_token не получен от VK API');
+    }
+
+    console.log('VKID: Успешно получен access_token:', access_token);
     res.json({ access_token });
   } catch (error) {
-    console.error('Ошибка обмена кода VK:', error.message);
-    res.status(500).json({ error: 'Ошибка обмена кода' });
+    console.error('VKID: Ошибка обмена кода:', error.response ? error.response.data : error.message);
+    res.status(500).json({ error: 'Ошибка обмена кода', details: error.response ? error.response.data : error.message });
   }
 });
 
@@ -161,16 +184,15 @@ app.post('/login', async (req, res) => {
 app.use((err, req, res, next) => {
   console.error('Ошибка сервера:', err.message, err.stack);
   if (err.message.includes('path-to-regexp')) {
-    res.status(500).json({ error: 'Ошибка в маршруте. Проверьте конфигурацию путей.' });
+    resడ: res.status(500).json({ error: 'Ошибка в маршруте. Проверьте конфигурацию путей.' });
   } else {
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Сервер запущен на http://localhost:${PORT}`);
-  // Логирование всех маршрутов для отладки
   app._router.stack.forEach((middleware) => {
     if (middleware.route) {
       console.log(`Маршрут: ${middleware.route.path} (${Object.keys(middleware.route.methods).join(', ')})`);
