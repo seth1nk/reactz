@@ -7,13 +7,15 @@ const bcrypt = require('bcrypt');
 const app = express();
 
 // Настройка CORS
-app.use(cors({
-  origin: ['https://react-lime-delta.vercel.app', 'http://localhost:3000'],
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  optionsSuccessStatus: 200
-}));
+app.use(
+  cors({
+    origin: ['https://react-lime-delta.vercel.app', 'http://localhost:3000'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    optionsSuccessStatus: 200,
+  })
+);
 
 // Установка заголовков COOP и COEP
 app.use((req, res, next) => {
@@ -82,24 +84,36 @@ app.post('/auth/google', async (req, res) => {
 
 // Эндпоинт для VKID-авторизации
 app.get('/auth/vkid', async (req, res) => {
-  const CLIENT_ID = "53544787";
-  const CLIENT_SECRET = 'ВАШ_CLIENT_SECRET'; // Замените на ваш client_secret из кабинета VK ID
+  const CLIENT_ID = '53544787';
+  const CLIENT_SECRET = 'ВАШ_CLIENT_SECRET'; // Замените на реальный client_secret из кабинета VK ID
   try {
     const { code, device_id } = req.query;
     if (!code || !device_id) {
       return res.status(400).json({ error: 'Код или device_id не предоставлены' });
     }
-    const response = await axios.post('https://api.vk.com/method/auth.exchangeCode', {
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      code,
-      device_id,
-      v: '5.131',
-    });
-    const { access_token } = response.data;
+    const response = await axios.post(
+      'https://api.vk.com/method/auth.exchangeCode',
+      {
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        code,
+        device_id,
+        v: '5.131',
+      },
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      }
+    );
+    const { access_token } = response.data.response || {};
+    if (!access_token) {
+      throw new Error('access_token не получен от VK API');
+    }
+    console.log('VKID: Успешно получен access_token:', access_token);
     res.json({ access_token });
   } catch (error) {
-    console.error('Ошибка обмена кода VK:', error.message);
+    console.error('Ошибка обмена кода VK:', error.response ? error.response.data : error.message);
     res.status(500).json({ error: 'Ошибка обмена кода' });
   }
 });
@@ -170,7 +184,6 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Сервер запущен на http://localhost:${PORT}`);
-  // Логирование всех маршрутов для отладки
   app._router.stack.forEach((middleware) => {
     if (middleware.route) {
       console.log(`Маршрут: ${middleware.route.path} (${Object.keys(middleware.route.methods).join(', ')})`);
