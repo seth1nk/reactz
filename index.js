@@ -86,7 +86,7 @@ app.post('/auth/google', async (req, res) => {
 // Эндпоинт для VKID-авторизации
 app.get('/auth/vkid', async (req, res) => {
   const CLIENT_ID = '53544787';
-  const CLIENT_SECRET = 'ВАШ_CLIENT_SECRET'; // Замените на реальный client_secret из кабинета VK ID
+  const CLIENT_SECRET = 'N89x726zF1SUKY5nWwC9'; // Замените на реальный client_secret из кабинета VK ID
   const REDIRECT_URI = 'https://react-lime-delta.vercel.app';
   try {
     const { code, device_id } = req.query;
