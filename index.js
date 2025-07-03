@@ -8,19 +8,26 @@ const app = express();
 
 // Настройка CORS
 app.use(cors({
-  origin: ['https://react-lime-delta.vercel.app', 'http://localhost:3000'], // Разрешённые домены
+  origin: ['https://react-lime-delta.vercel.app', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-  optionsSuccessStatus: 200 // Для поддержки старых браузеров
+  optionsSuccessStatus: 200
 }));
 
-// Установка заголовка Cross-Origin-Opener-Policy
+// Установка заголовков COOP и COEP
 app.use((req, res, next) => {
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
-  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp'); // Для дополнительной безопасности
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
   console.log(`Запрос: ${req.method} ${req.url} от ${req.headers.origin}`);
   next();
+});
+
+// Логирование всех маршрутов
+app._router.stack.forEach((middleware) => {
+  if (middleware.route) {
+    console.log(`Маршрут: ${middleware.route.path} (${Object.keys(middleware.route.methods).join(', ')})`);
+  }
 });
 
 // Обработка предварительных запросов OPTIONS
@@ -131,6 +138,12 @@ app.post('/login', async (req, res) => {
     console.error('Ошибка входа:', error.message);
     res.status(500).json({ error: 'Ошибка входа' });
   }
+});
+
+// Обработка ошибок маршрутов
+app.use((err, req, res, next) => {
+  console.error('Ошибка сервера:', err.message, err.stack);
+  res.status(500).json({ error: 'Внутренняя ошибка сервера' });
 });
 
 const PORT = process.env.PORT || 5000;
