@@ -3,7 +3,6 @@ const axios = require('axios');
 const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
-require('dotenv').config(); // Добавляем dotenv для переменных окружения
 
 const app = express();
 
@@ -84,7 +83,7 @@ app.post('/auth/google', async (req, res) => {
 // Эндпоинт для VKID-авторизации
 app.get('/auth/vkid', async (req, res) => {
   const CLIENT_ID = "53544787";
-  const CLIENT_SECRET = process.env.VKID_CLIENT_SECRET; // Храните client_secret в переменной окружения
+  const CLIENT_SECRET = 'ВАШ_CLIENT_SECRET'; // Замените на ваш client_secret из кабинета VK ID
   try {
     const { code, device_id } = req.query;
     if (!code || !device_id) {
@@ -160,7 +159,7 @@ app.post('/login', async (req, res) => {
 
 // Обработка ошибок маршрутов
 app.use((err, req, res, next) => {
-  console.error('Ошибка сервера:', err.text);
+  console.error('Ошибка сервера:', err.message, err.stack);
   if (err.message.includes('path-to-regexp')) {
     res.status(500).json({ error: 'Ошибка в маршруте. Проверьте конфигурацию путей.' });
   } else {
