@@ -3,6 +3,7 @@ const axios = require('axios');
 const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
+require('dotenv').config(); // Добавляем dotenv для переменных окружения
 
 const app = express();
 
@@ -44,7 +45,7 @@ async function initializeTable() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        email VARCHAR(255) UNIQUE NOT NOT,
+        email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         name VARCHAR(255) NOT NULL
       )
@@ -159,7 +160,7 @@ app.post('/login', async (req, res) => {
 
 // Обработка ошибок маршрутов
 app.use((err, req, res, next) => {
-  console.error('Ошибка сервера:', err.message, err.stack);
+  console.error('Ошибка сервера:', err.text);
   if (err.message.includes('path-to-regexp')) {
     res.status(500).json({ error: 'Ошибка в маршруте. Проверьте конфигурацию путей.' });
   } else {
