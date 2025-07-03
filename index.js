@@ -107,6 +107,7 @@ app.get('/auth/vkid', async (req, res) => {
       params.code_verifier = code_verifier;
     }
 
+    console.log('VKID: Запрос к VK API:', params);
     const response = await axios.post(
       'https://oauth.vk.com/access_token',
       qs.stringify(params),
