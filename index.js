@@ -23,13 +23,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Логирование всех маршрутов
-app._router.stack.forEach((middleware) => {
-  if (middleware.route) {
-    console.log(`Маршрут: ${middleware.route.path} (${Object.keys(middleware.route.methods).join(', ')})`);
-  }
-});
-
 // Обработка предварительных запросов OPTIONS
 app.options('*', cors());
 
@@ -143,10 +136,20 @@ app.post('/login', async (req, res) => {
 // Обработка ошибок маршрутов
 app.use((err, req, res, next) => {
   console.error('Ошибка сервера:', err.message, err.stack);
-  res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  if (err.message.includes('path-to-regexp')) {
+    res.status(500).json({ error: 'Ошибка в маршруте. Проверьте конфигурацию путей.' });
+  } else {
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
 });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Сервер запущен на http://localhost:${PORT}`);
+  // Логирование всех маршрутов для отладки
+  app._router.stack.forEach((middleware) => {
+    if (middleware.route) {
+      console.log(`Маршрут: ${middleware.route.path} (${Object.keys(middleware.route.methods).join(', ')})`);
+    }
+  });
 });
