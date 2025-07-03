@@ -3,7 +3,7 @@ const axios = require('axios');
 const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
-const qs = require('querystring'); // Для форматирования данных в x-www-form-urlencoded
+const qs = require('querystring');
 
 const app = express();
 
@@ -87,6 +87,7 @@ app.post('/auth/google', async (req, res) => {
 app.get('/auth/vkid', async (req, res) => {
   const CLIENT_ID = '53544787';
   const CLIENT_SECRET = 'ВАШ_CLIENT_SECRET'; // Замените на реальный client_secret из кабинета VK ID
+  const REDIRECT_URI = 'https://react-lime-delta.vercel.app';
   try {
     const { code, device_id } = req.query;
     if (!code || !device_id) {
@@ -96,24 +97,25 @@ app.get('/auth/vkid', async (req, res) => {
     console.log('VKID: Получен код и device_id:', { code, device_id });
 
     const response = await axios.post(
-      'https://api.vk.com/method/auth.exchangeCode',
+      'https://id.vk.com/auth',
       qs.stringify({
         client_id: CLIENT_ID,
         client_secret: CLIENT_SECRET,
         code,
-        device_id,
-        v: '5.131',
+        redirect_uri: REDIRECT_URI,
+        grant_type: 'authorization_code',
       }),
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
+     
       }
     );
 
     console.log('VKID: Ответ от VK API:', response.data);
 
-    const { access_token } = response.data.response || {};
+    const { access_token } = response.data;
     if (!access_token) {
       console.error('VKID: access_token не получен:', response.data);
       throw new Error('access_token не получен от VK API');
@@ -184,7 +186,7 @@ app.post('/login', async (req, res) => {
 app.use((err, req, res, next) => {
   console.error('Ошибка сервера:', err.message, err.stack);
   if (err.message.includes('path-to-regexp')) {
-    resడ: res.status(500).json({ error: 'Ошибка в маршруте. Проверьте конфигурацию путей.' });
+    res.status(500).json({ error: 'Ошибка в маршруте. Проверьте конфигурацию путей.' });
   } else {
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
