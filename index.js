@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:3000' }));
+app.use(cors({ origin: 'https://react-lime-delta.vercel.app' }));
 app.use(express.json());
 
 // Подключение к базе apt
