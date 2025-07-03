@@ -44,7 +44,7 @@ async function initializeTable() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        email VARCHAR(255) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NOT,
         password VARCHAR(255) NOT NULL,
         name VARCHAR(255) NOT NULL
       )
@@ -77,6 +77,30 @@ app.post('/auth/google', async (req, res) => {
   } catch (error) {
     console.error('Ошибка проверки Google токена:', error.response ? error.response.data : error.message);
     res.status(500).json({ error: 'Ошибка авторизации через Google' });
+  }
+});
+
+// Эндпоинт для VKID-авторизации
+app.get('/auth/vkid', async (req, res) => {
+  const CLIENT_ID = "53544787";
+  const CLIENT_SECRET = process.env.VKID_CLIENT_SECRET; // Храните client_secret в переменной окружения
+  try {
+    const { code, device_id } = req.query;
+    if (!code || !device_id) {
+      return res.status(400).json({ error: 'Код или device_id не предоставлены' });
+    }
+    const response = await axios.post('https://api.vk.com/method/auth.exchangeCode', {
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      code,
+      device_id,
+      v: '5.131',
+    });
+    const { access_token } = response.data;
+    res.json({ access_token });
+  } catch (error) {
+    console.error('Ошибка обмена кода VK:', error.message);
+    res.status(500).json({ error: 'Ошибка обмена кода' });
   }
 });
 
